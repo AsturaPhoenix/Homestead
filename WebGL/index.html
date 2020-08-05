@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Unity WebGL Player | Homestead</title>
+</head>
+
+<body style="text-align: center">
+  <canvas id="unity-canvas" style="width: 100%; height: 100%; background: #231F20"></canvas>
+  <script src="Build/Build.loader.js"></script>
+  <script>
+    createUnityInstance(document.querySelector("#unity-canvas"), {
+      dataUrl: "Build/Build.data.gz",
+      frameworkUrl: "Build/Build.framework.js.gz",
+      codeUrl: "Build/Build.wasm.gz",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "Astura Phoenix",
+      productName: "Homestead",
+      productVersion: "0.1",
+    });
+  </script>
+</body>
+
+</html>
