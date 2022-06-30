@@ -6,6 +6,8 @@ using UnityEngine;
 
 namespace Tests {
   public class IcoLatticeTest {
+    private const float epsilon = 1e-5f;
+
     public class PolarCoordinateTest
     {
       [Test]
@@ -96,7 +98,7 @@ namespace Tests {
       public void Antipodes() {
         var lattice = new IcoLattice(5);
         foreach (var c in lattice.PolarCoordinates) {
-          Assert.AreEqual(0, (lattice.ToCartesian(c) + lattice.ToCartesian(-c)).sqrMagnitude, 1e-10);
+          Assert.AreEqual(0, (lattice.ToCartesian(c) + lattice.ToCartesian(-c)).sqrMagnitude, epsilon);
         }
       }
     }
@@ -137,6 +139,33 @@ namespace Tests {
 
       foreach (var edge in lattice.Edges) {
         Assert.AreEqual(dsq, (lattice.Vertices[edge.a] - lattice.Vertices[edge.b]).sqrMagnitude, (1 - (1 - tolerance) * (1 - tolerance))  * dsq);
+      }
+    }
+
+    [Test]
+    public void Project() {
+      var lattice = new IcoLattice(5);
+      int expected = 0;
+      foreach (var v in lattice.Vertices) {
+        (int a, int b, int c, Vector2 rem) = lattice.Project(v);
+
+        int i;
+        if (rem.x < .5f && rem.y < .5f) {
+          i = a;
+          Assert.AreEqual(0, rem.x, epsilon);
+          Assert.AreEqual(0, rem.y, epsilon);
+        } else if (rem.x > .5f) {
+          i = b;
+          Assert.AreEqual(1, rem.x, epsilon);
+          Assert.AreEqual(0, rem.y, epsilon);
+        } else {
+          i = c;
+          Assert.AreEqual(0, rem.x, epsilon);
+          Assert.AreEqual(1, rem.y, epsilon);
+        }
+
+        Assert.AreEqual(expected, i, "{0} => ({1}, {2}, {3}) + {4}", v, a, b, c, rem);
+        ++expected;
       }
     }
   }
