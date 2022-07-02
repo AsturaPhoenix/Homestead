@@ -9,6 +9,29 @@ namespace Assets.Lattice
   /// </summary>
   public class IcoLattice : ILatticeGeometry<Vector3>
   {
+    public struct SubdividedCoordinate
+    {
+      public int face, div;
+
+      public SubdividedCoordinate(int face, int div) {
+        this.face = face;
+        this.div = div;
+      }
+    }
+
+    public struct PolarCoordinate
+    {
+      /// <summary>
+      /// lat down, lon left
+      /// </summary>
+      public SubdividedCoordinate lat, lon;
+
+      public PolarCoordinate(int latFace, int latDiv, int lonFace, int lonDiv) {
+        lat = new SubdividedCoordinate(latFace, latDiv);
+        lon = new SubdividedCoordinate(lonFace, lonDiv);
+      }
+    }
+
     // There are a bunch of ways to mesh the normals; let's do normalized linear interpolation for simplicity.
     // Since we're interpolating linearly, each latitude is truly flat and increments linearly, so only the tropic Y is of consequence.
     private static readonly float tropicY = 1 / Mathf.Sqrt(5);
@@ -42,28 +65,45 @@ namespace Assets.Lattice
       this.subdivisions = subdivisions;
     }
 
-    public IEnumerable<Vector3> Vertices {
-      get {
-        float inc = 1.0f / subdivisions;
+    public Vector3 ToCartesian(PolarCoordinate c) {
+      // Some of these calculations could be factored out and memoized for use cases such as vertex iteration, but that makes the code less reusable for use cases like projection.
+      switch (c.lat.face) {
+        case 0: {
+            Vector2 a = icoNormals[c.lon.face], b = icoNormals[(c.lon.face + 1) % 5];
+            Vector2 v = Vector2.Lerp(a, b, (float)c.lon.div / c.lat.div);
+            float scale = (float)c.lat.div / subdivisions;
+            // This relies on NaN * 0 = 0.
+            return (Vector3.up + new Vector3(v.x, tropicY - 1, v.y) * scale).normalized;
+          }
+        case 1:
+        case 2:
+        default:
+          throw new ArgumentOutOfRangeException("coordinate", "lat.face must be [0, 2]");
 
+      }
+    }
+
+    private IEnumerable<PolarCoordinate> PolarCoordinates {
+      get {
         // north pole
         {
-          yield return Vector3.up;
+          PolarCoordinate c = new PolarCoordinate();
+          yield return c;
 
-          for (int lat = 1; lat <= subdivisions; ++lat) {
-            float scale = lat * inc;
-            float y = Mathf.Lerp(1, tropicY, scale);
-
-            for (int face = 0; face < 5; ++face) {
-              Vector2 a = scale * icoNormals[face], b = scale * icoNormals[(face + 1) % 5];
-
-              for (int div = 0; div < lat; ++div) {
-                var v = Vector2.Lerp(a, b, (float)div / lat);
-                yield return new Vector3(v.x, y, v.y).normalized;
+          for (c.lat.div = 1; c.lat.div <= subdivisions; ++c.lat.div) {
+            for (c.lon.face = 0; c.lon.face < 5; ++c.lon.face) {
+              for (c.lon.div = 0; c.lon.div < c.lat.div; ++c.lon.div) {
+                yield return c;
               }
             }
           }
         }
+      }
+    }
+
+    public IEnumerable<Vector3> Vertices {
+      get {
+        float inc = 1.0f / subdivisions;
 
         // tropics
         {
