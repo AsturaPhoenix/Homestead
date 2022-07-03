@@ -68,14 +68,16 @@ namespace Assets.Lattice
     public Vector3 ToCartesian(PolarCoordinate c) {
       // Some of these calculations could be factored out and memoized for use cases such as vertex iteration, but that makes the code less reusable for use cases like projection.
       switch (c.lat.face) {
-        case 0: {
+        case 0: { // north pole
             Vector2 a = icoNormals[c.lon.face], b = icoNormals[(c.lon.face + 1) % 5];
             Vector2 v = Vector2.Lerp(a, b, (float)c.lon.div / c.lat.div);
             float scale = (float)c.lat.div / subdivisions;
             // This relies on NaN * 0 = 0.
             return (Vector3.up + new Vector3(v.x, tropicY - 1, v.y) * scale).normalized;
           }
-        case 1:
+        case 1: { // tropics
+            
+          }
         case 2:
         default:
           throw new ArgumentOutOfRangeException("coordinate", "lat.face must be [0, 2]");
