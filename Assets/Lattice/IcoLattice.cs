@@ -17,6 +17,25 @@ namespace Assets.Lattice
         this.face = face;
         this.div = div;
       }
+
+      /// <summary>
+      /// Normalizes a subdivided coordinate to the range ([0, faces), [0, subdivisions)). It is worth noting that this handles negative signs differently
+      /// from naive integer arithmetic.
+      /// </summary>
+      public void Normalize(int faces, int subdivisions) {
+        face += div / subdivisions;
+        div %= subdivisions;
+
+        if (div < 0) {
+          --face;
+          div += subdivisions;
+        }
+
+        face %= faces;
+        if (face < 0) {
+          face += faces;
+        }
+      }
     }
 
     public struct PolarCoordinate
@@ -33,6 +52,43 @@ namespace Assets.Lattice
       public PolarCoordinate(int latFace, int latDiv, int lonFace, int lonDiv) {
         lat = new SubdividedCoordinate(latFace, latDiv);
         lon = new SubdividedCoordinate(lonFace, lonDiv);
+      }
+
+      public void Normalize(int subdivisions) {
+        lat.Normalize(6, subdivisions);
+
+        if (lat.div == 0 && (lat.face == 0 || lat.face == 3)) { // poles
+          lon.face = lon.div = 0;
+        } else {
+          if (lat.face >= 3) { // flip
+            lat.face = 5 - lat.face;
+            lat.div = subdivisions - lat.div;
+            Debug.Assert(lat.face >= 0 && lat.face < 3);
+            if (lat.face == 1) {
+              lon.face += 5;
+            } else {
+              // Flipping a polar coordinate in a polar region only works for even latitudes.
+              if (lat.div % 2 == 0) {
+                lon.face += 2;
+                lon.div += lat.div / 2;
+              } else {
+                throw new InvalidOperationException("Polar coordinate cannot be normalized due to asymmetric wrapping. This coordinate is now in an invalid state.");
+                // This is also an argument in favor of making this readonly.
+              }
+            }
+          }
+
+          // Longitude subdivisions in the polar regions is straightforward, but in the tropics we need to do a quadrilateral subdivision.
+          lon.Normalize(5, lat.face == 0 ? lat.div : lat.face == 1 ? subdivisions : subdivisions - lat.div);
+          if (lat.face == 1) {
+            lon.face *= 2;
+            int downLen = subdivisions - lat.div;
+            if (lon.div > downLen) {
+              ++lon.face;
+              lon.div -= downLen;
+            }
+          }
+        }
       }
     }
 
@@ -70,6 +126,8 @@ namespace Assets.Lattice
     }
 
     public Vector3 ToCartesian(PolarCoordinate c) {
+      c.Normalize(subdivisions);
+
       // Some of these calculations could be factored out and memoized for use cases such as vertex iteration, but that makes the code less reusable for use cases like projection.
       switch (c.lat.face) {
         case 0: { // north pole
@@ -84,12 +142,21 @@ namespace Assets.Lattice
             t.y = (float)c.lat.div / subdivisions;
             int facePair = c.lat.face / 2;
             int next = (facePair + 1) % 5;
+            Vector2 qa = icoNormals[facePair], qb = icoNormals[next], qc = icoNormals[facePair + 5], qd = icoNormals[next + 5];
 
             Vector2 a, b;
             if (c.lat.face % 2 == 0) {
-              a = Vector2.Lerp(icoNormals[facePair], icoNormals[facePair + 5], t.y);
-              b = Vector2.Lerp(icoNormals[next], icoNormals[facePair + 5], t.y);
+              a = Vector2.Lerp(qa, qc, t.y);
+              b = Vector2.Lerp(qb, qc, t.y);
+              t.x = (float)c.lon.div / (subdivisions - c.lat.div);
+            } else {
+              a = Vector2.Lerp(qb, qc, t.y);
+              b = Vector2.Lerp(qb, qd, t.y);
+              t.x = (float)c.lon.div / c.lat.div;
             }
+
+            var v = Vector2.Lerp(a, b, t.x);
+            return new Vector3(v.x, Mathf.Lerp(tropicY, -tropicY, t.y), v.y).normalized;
           }
         case 2:
         default:
