@@ -23,6 +23,10 @@ namespace Assets.Lattice
     {
       /// <summary>
       /// lat down, lon left
+      /// 
+      /// In the tropics (lat face 1), even faces point downwards while odd faces point upwards.
+      /// 
+      /// Normalized form is up/left-inclusive, where the south pole is at latitude 3.0
       /// </summary>
       public SubdividedCoordinate lat, lon;
 
@@ -76,7 +80,16 @@ namespace Assets.Lattice
             return (Vector3.up + new Vector3(v.x, tropicY - 1, v.y) * scale).normalized;
           }
         case 1: { // tropics
-            
+            Vector2 t;
+            t.y = (float)c.lat.div / subdivisions;
+            int facePair = c.lat.face / 2;
+            int next = (facePair + 1) % 5;
+
+            Vector2 a, b;
+            if (c.lat.face % 2 == 0) {
+              a = Vector2.Lerp(icoNormals[facePair], icoNormals[facePair + 5], t.y);
+              b = Vector2.Lerp(icoNormals[next], icoNormals[facePair + 5], t.y);
+            }
           }
         case 2:
         default:
