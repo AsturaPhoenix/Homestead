@@ -82,6 +82,12 @@ namespace Assets.Lattice
           lon.Normalize(5, lat.face == 0 ? lat.div : lat.face == 1 ? subdivisions : subdivisions - lat.div);
         }
       }
+
+      public static PolarCoordinate operator +(PolarCoordinate c, (int latDiv, int lonDiv) delta) {
+        c.lat.div += delta.latDiv;
+        c.lon.div += delta.lonDiv;
+        return c;
+      }
     }
 
     // There are a bunch of ways to mesh the normals; let's do normalized linear interpolation for simplicity.
@@ -206,6 +212,27 @@ namespace Assets.Lattice
       }
     }
 
+    /// <summary>
+    /// Calculates the number of vertices in the equilateral pentagonal pyramid of the given height.
+    /// </summary>
+    private static int PyramidSize(int height) => 1 + 5 * height * (height - 1) / 2;
+
+    public int ToIndex(PolarCoordinate c) {
+      c.Normalize(subdivisions);
+
+      switch (c.lat.face) {
+        case 0:
+          return c.lat.div == 0? 0 : PyramidSize(c.lat.div) + c.lon.face * c.lat.div + c.lon.div;
+        case 1:
+          return PyramidSize(subdivisions) + c.lat.div * 5 * subdivisions + c.lon.face * subdivisions + c.lon.div;
+        case 2:
+          int latLen = subdivisions - c.lat.div;
+          return 2 * PyramidSize(subdivisions) + 6 * subdivisions * subdivisions - PyramidSize(latLen + 1) + c.lon.face * latLen + c.lon.div;
+        default:
+          return 2 * PyramidSize(subdivisions) + 6 * subdivisions * subdivisions - 1;
+      }
+    }
+
     public IEnumerable<Vector3> Vertices {
       get {
         foreach (var polar in PolarCoordinates) {
@@ -216,32 +243,21 @@ namespace Assets.Lattice
 
     public IEnumerable<(int a, int b)> Edges {
       get {
-        /// <summary>
-        /// Calculates the number of vertices in the equilateral pentagonal pyramid of the given height.
-        /// </summary>
-        int PyramidSize(int height) => 1 + 5 * height * (height - 1) / 2;
-
-        int northTropic = PyramidSize(subdivisions);
-        int southTropic = northTropic + 5 * subdivisions * subdivisions;
-
         // We'll mostly be doing south-facing triangles.
+
+        PolarCoordinate p = new PolarCoordinate();
 
         // north pole
         {
-          int vertex(int lat, int face, int div) {
-            if (lat == 0) return 0;
-            // latLength = lat
-            return PyramidSize(lat) + (face * lat + div) % (5 * lat);
-          }
+          for (p.lat.div = 0; p.lat.div < subdivisions; ++p.lat.div) {
+            for (p.lon.face = 0; p.lon.face < 5; ++p.lon.face) {
+              p.lon.div = 0;
+              yield return (ToIndex(p), ToIndex(p + (1, 0)));
 
-          for (int lat = 0; lat < subdivisions; ++lat) {
-            for (int face = 0; face < 5; ++face) {
-              yield return (vertex(lat, face, 0), vertex(lat + 1, face, 0));
-
-              for (int div = 0; div < lat; ++div) {
-                int a = vertex(lat, face, div),
-                    b = vertex(lat, face, div + 1),
-                    c = vertex(lat + 1, face, div + 1);
+              for (; p.lon.div < p.lat.div; ++p.lon.div) {
+                int a = ToIndex(p),
+                    b = ToIndex(p + (0, 1)),
+                    c = ToIndex(p + (1, 1));
                 yield return (a, b);
                 yield return (a, c);
                 yield return (b, c);
@@ -252,38 +268,34 @@ namespace Assets.Lattice
 
         // tropics
         {
-          int latLength = 5 * subdivisions;
-          // restart at lat = 0 for simplicity; faces omitted since each face and latitude is functionally identical until the next tropic
-          int vertex(int lat, int div) => northTropic + lat * latLength + div % latLength;
+          p.lat.face = 1;
 
-          for (int lat = 0; lat < subdivisions; ++lat) {
-            for (int div = 0; div < latLength; ++div) {
-              int a = vertex(lat, div),
-                  b = vertex(lat, div + 1),
-                  c = vertex(lat + 1, div);
-              yield return (a, b);
-              yield return (a, c);
-              yield return (b, c);
+          for (p.lat.div = 0; p.lat.div < subdivisions; ++p.lat.div) {
+            for (p.lon.face = 0; p.lon.face < 5; ++p.lon.face) {
+              for (p.lon.div = 0; p.lon.div < subdivisions; ++p.lon.div) {
+                int a = ToIndex(p),
+                    b = ToIndex(p + (0, 1)),
+                    c = ToIndex(p + (1, 0));
+                yield return (a, b);
+                yield return (a, c);
+                yield return (b, c);
+              }
             }
           }
         }
 
         // south pole
         {
-          int vertex(int lat, int face, int div) {
-            int latLength = subdivisions - lat;
-            int latStart = southTropic + 5 * lat * (subdivisions + latLength + 1) / 2;
-            return lat == subdivisions ? latStart : latStart + (face * latLength + div) % (5 * latLength);
-          }
+          p.lat.face = 2;
 
-          for (int lat = 0; lat < subdivisions; ++lat) {
-            for (int face = 0; face < 5; ++face) {
-              for (int div = 0; div < subdivisions - lat; ++div) {
-                int a = vertex(lat, face, div),
-                    b = vertex(lat, face, div + 1),
-                    c = vertex(lat + 1, face, div);
+          for (p.lat.div = 0; p.lat.div < subdivisions; ++p.lat.div) {
+            for (p.lon.face = 0; p.lon.face < 5; ++p.lon.face) {
+              for (p.lon.div = 0; p.lon.div < subdivisions - p.lat.div; ++p.lon.div) {
+                int a = ToIndex(p),
+                    b = ToIndex(p + (0, 1)),
+                    c = ToIndex(p + (1, 0));
                 yield return (a, b);
-                if (div > 0)
+                if (p.lon.div > 0)
                   yield return (a, c);
                 yield return (b, c);
               }
