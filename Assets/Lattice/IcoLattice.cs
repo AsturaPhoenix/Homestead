@@ -43,7 +43,7 @@ namespace Assets.Lattice
       /// <summary>
       /// lat down, lon left
       /// 
-      /// In the tropics (lat face 1), even faces point downwards while odd faces point upwards.
+      /// In the tropics (lat face 1), longitudinal faces represent triangle pairs where the left triangle points down and the right points up.
       /// 
       /// Normalized form is up/left-inclusive, where the south pole is at latitude 3.0
       /// </summary>
@@ -80,14 +80,6 @@ namespace Assets.Lattice
 
           // Longitude subdivisions in the polar regions is straightforward, but in the tropics we need to do a quadrilateral subdivision.
           lon.Normalize(5, lat.face == 0 ? lat.div : lat.face == 1 ? subdivisions : subdivisions - lat.div);
-          if (lat.face == 1) {
-            lon.face *= 2;
-            int downLen = subdivisions - lat.div;
-            if (lon.div > downLen) {
-              ++lon.face;
-              lon.div -= downLen;
-            }
-          }
         }
       }
     }
@@ -131,108 +123,93 @@ namespace Assets.Lattice
       // Some of these calculations could be factored out and memoized for use cases such as vertex iteration, but that makes the code less reusable for use cases like projection.
       switch (c.lat.face) {
         case 0: { // north pole
+            if (c.lat.div == 0) {
+              return Vector3.up;
+            }
+
             Vector2 a = icoNormals[c.lon.face], b = icoNormals[(c.lon.face + 1) % 5];
             Vector2 v = Vector2.Lerp(a, b, (float)c.lon.div / c.lat.div);
             float scale = (float)c.lat.div / subdivisions;
-            // This relies on NaN * 0 = 0.
             return (Vector3.up + new Vector3(v.x, tropicY - 1, v.y) * scale).normalized;
           }
         case 1: { // tropics
             Vector2 t;
             t.y = (float)c.lat.div / subdivisions;
-            int facePair = c.lat.face / 2;
-            int next = (facePair + 1) % 5;
-            Vector2 qa = icoNormals[facePair], qb = icoNormals[next], qc = icoNormals[facePair + 5], qd = icoNormals[next + 5];
+            int next = (c.lon.face + 1) % 5;
+            Vector2 qa = icoNormals[c.lon.face], qb = icoNormals[next], qc = icoNormals[c.lon.face + 5], qd = icoNormals[next + 5];
 
             Vector2 a, b;
-            if (c.lat.face % 2 == 0) {
+            int boundary = subdivisions - c.lat.div;
+            if (c.lon.div < boundary) {
               a = Vector2.Lerp(qa, qc, t.y);
               b = Vector2.Lerp(qb, qc, t.y);
-              t.x = (float)c.lon.div / (subdivisions - c.lat.div);
+              t.x = (float)c.lon.div / boundary;
             } else {
               a = Vector2.Lerp(qb, qc, t.y);
               b = Vector2.Lerp(qb, qd, t.y);
-              t.x = (float)c.lon.div / c.lat.div;
+              t.x = (float)(c.lon.div - boundary) / c.lat.div;
             }
 
             var v = Vector2.Lerp(a, b, t.x);
             return new Vector3(v.x, Mathf.Lerp(tropicY, -tropicY, t.y), v.y).normalized;
           }
-        case 2:
+        case 2: { //south pole
+            Vector2 a = icoNormals[c.lon.face + 5], b = icoNormals[(c.lon.face + 1) % 5 + 5];
+            int len = subdivisions - c.lat.div;
+            Vector2 v = Vector2.Lerp(a, b, (float)c.lon.div / len);
+            float scale = (float)len / subdivisions;
+            return (Vector3.down + new Vector3(v.x, 1 - tropicY, v.y) * scale).normalized;
+          }
         default:
-          throw new ArgumentOutOfRangeException("coordinate", "lat.face must be [0, 2]");
-
+          return Vector3.down;
       }
     }
 
     private IEnumerable<PolarCoordinate> PolarCoordinates {
       get {
-        // north pole
         {
           PolarCoordinate c = new PolarCoordinate();
+          // north pole
           yield return c;
 
-          for (c.lat.div = 1; c.lat.div <= subdivisions; ++c.lat.div) {
+          for (c.lat.div = 1; c.lat.div < subdivisions; ++c.lat.div) {
             for (c.lon.face = 0; c.lon.face < 5; ++c.lon.face) {
               for (c.lon.div = 0; c.lon.div < c.lat.div; ++c.lon.div) {
                 yield return c;
               }
             }
           }
+
+          //tropics
+          c.lat.face = 1;
+          for (c.lat.div = 0; c.lat.div < subdivisions; ++c.lat.div) {
+            for (c.lon.face = 0; c.lon.face < 5; ++c.lon.face) {
+              for (c.lon.div = 0; c.lon.div < subdivisions; ++c.lon.div) {
+                yield return c;
+              }
+            }
+          }
+
+          // south pole
+          c.lat.face = 2;
+          for (c.lat.div = 0; c.lat.div < subdivisions; ++c.lat.div) {
+            for (c.lon.face = 0; c.lon.face < 5; ++c.lon.face) {
+              int len = subdivisions - c.lat.div;
+              for (c.lon.div = 0; c.lon.div < len; ++c.lon.div) {
+                yield return c;
+              }
+            }
+          }
+
+          yield return new PolarCoordinate(3, 0, 0, 0);
         }
       }
     }
 
     public IEnumerable<Vector3> Vertices {
       get {
-        float inc = 1.0f / subdivisions;
-
-        // tropics
-        {
-          for (int lat = 1; lat < subdivisions; ++lat) {
-            float t = lat * inc;
-            float y = Mathf.Lerp(tropicY, -tropicY, t);
-
-            for (int facePair = 0; facePair < 5; ++facePair) {
-              int next = (facePair + 1) % 5;
-              Vector2 qa = icoNormals[facePair], qb = icoNormals[next], qc = icoNormals[facePair + 5], qd = icoNormals[next + 5];
-              {
-                Vector2 a = Vector2.Lerp(qa, qc, t), b = Vector2.Lerp(qb, qc, t);
-                int len = subdivisions - lat;
-                for (int div = 0; div < len; ++div) {
-                  var v = Vector2.Lerp(a, b, (float)div / len);
-                  yield return new Vector3(v.x, y, v.y).normalized;
-                }
-              }
-              {
-                Vector2 a = Vector2.Lerp(qb, qc, t), b = Vector2.Lerp(qb, qd, t);
-                for (int div = 0; div < lat; ++div) {
-                  var v = Vector2.Lerp(a, b, (float)div / lat);
-                  yield return new Vector3(v.x, y, v.y).normalized;
-                }
-              }
-            }
-          }
-        }
-
-        // south pole
-        {
-          for (int lat = 0; lat < subdivisions; ++lat) {
-            int len = subdivisions - lat;
-            float scale = len * inc;
-            float y = Mathf.Lerp(-1, -tropicY, scale);
-
-            for (int face = 0; face < 5; ++face) {
-              Vector2 a = scale * icoNormals[face + 5], b = scale * icoNormals[(face + 1) % 5 + 5];
-
-              for (int div = 0; div < len; ++div) {
-                var v = Vector2.Lerp(a, b, (float)div / len);
-                yield return new Vector3(v.x, y, v.y).normalized;
-              }
-            }
-          }
-
-          yield return Vector3.down;
+        foreach (var polar in PolarCoordinates) {
+          yield return ToCartesian(polar);
         }
       }
     }
