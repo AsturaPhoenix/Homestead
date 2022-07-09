@@ -189,7 +189,7 @@ namespace Assets.Lattice
     /// Projects a cartesian vector onto the surface of this icosahedral lattice, returning the indices (a, b, c) of the three
     /// surrounding vertices and an offset vector in terms of (ab, ac).
     /// </summary>
-    public (int, int, int, Vector2) Project(Vector3 v) {
+    public (int a, int b, int c, Vector2 rem) Project(Vector3 v) {
       int faceIndex = 0; // If c = 0, default to face 0.
       float bestDot = 0;
 
@@ -232,19 +232,21 @@ namespace Assets.Lattice
         }
       }
 
-      if (bestDot > 0 && faceIndex < 5) {
+      // This is unfortunate.
+      int dlat = bestDot > 0 ? 1 : -1;
+
+      if (bestDot < 0 ^ faceIndex < 5) {
         if (rem.x > rem.y) {
-          b = a + (1, 0);
-          c = a + (1, 1);
+          b = a + (dlat, 0);
+          c = a + (dlat, 1);
           rem.x -= rem.y;
         } else {
-          b = a + (1, 1);
+          // For downwards-pointing triangles, relax the index ordering from left-then-down so that we can avoid having to swap rem dimensions.
+          b = a + (dlat, 1);
           c = a + (0, 1);
           rem.y -= rem.x;
         }
       } else {
-        // This is unfortunate.
-        int dlat = bestDot > 0 ? 1 : -1;
         if (rem.x + rem.y < 1) {
           b = a + (dlat, 0);
           c = a + (0, 1);
