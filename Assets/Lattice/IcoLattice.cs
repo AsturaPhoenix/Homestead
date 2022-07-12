@@ -18,7 +18,7 @@ namespace Assets.Lattice
         this.div = div;
       }
       public override string ToString() {
-        return String.Format("({0}, {1})", face, div);
+        return string.Format("({0}, {1})", face, div);
       }
 
 
@@ -27,18 +27,8 @@ namespace Assets.Lattice
       /// from naive integer arithmetic.
       /// </summary>
       public void Normalize(int faces, int subdivisions) {
-        face += div / subdivisions;
-        div %= subdivisions;
-
-        if (div < 0) {
-          --face;
-          div += subdivisions;
-        }
-
-        face %= faces;
-        if (face < 0) {
-          face += faces;
-        }
+        face += Math.DivRem(div, subdivisions, out div);
+        face = Math.FloorMod(face, faces);
       }
     }
 
