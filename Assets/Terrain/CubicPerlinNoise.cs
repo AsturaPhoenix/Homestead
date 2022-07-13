@@ -5,7 +5,6 @@ namespace Assets.Terrain
 {
   public class CubicPerlinNoise
   {
-
     private readonly Vector3[,,] gradients;
 
     public Vector3 NodeGradient(Vector3Int i) {
