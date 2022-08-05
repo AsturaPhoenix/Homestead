@@ -1,3 +1,4 @@
-﻿public interface ITerrainTreeNode {
+﻿public interface ITerrainTreeNode
+{
   int Deformation { get; set; }
 }

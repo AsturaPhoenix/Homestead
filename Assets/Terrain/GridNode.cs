@@ -1,4 +1,5 @@
-﻿public class GridNode {
+﻿public class GridNode
+{
   private readonly ITerrainTreeNode[,] children;
 
   public int Resolution { get; private set; }

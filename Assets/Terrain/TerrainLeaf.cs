@@ -1,3 +1,4 @@
-﻿public class TerrainLeaf {
+﻿public class TerrainLeaf
+{
   public float Deformation { get; set; }
 }

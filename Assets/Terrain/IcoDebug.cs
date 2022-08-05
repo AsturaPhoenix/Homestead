@@ -1,5 +1,5 @@
-﻿using UnityEngine;
-using Assets.Lattice;
+﻿using Assets.Lattice;
+using UnityEngine;
 
 namespace Assets.Terrain
 {

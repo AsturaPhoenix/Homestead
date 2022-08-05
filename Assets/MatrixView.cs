@@ -15,7 +15,7 @@ namespace Assets
       this.setter = setter;
     }
 
-    public MatrixView(int rows, int columns, Func<int, int, float> getter): this(rows, columns, getter, null) { }
+    public MatrixView(int rows, int columns, Func<int, int, float> getter) : this(rows, columns, getter, null) { }
 
     public float this[Index row, Index column] {
       get => getter(Math.CheckedOffset(row, rows), Math.CheckedOffset(column, columns));

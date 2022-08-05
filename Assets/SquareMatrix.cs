@@ -4,14 +4,14 @@ namespace Assets
 {
   public class SquareMatrix : Matrix, ISquareMatrix
   {
-    public SquareMatrix(int size): base(size, size) {
+    public SquareMatrix(int size) : base(size, size) {
     }
 
-    public SquareMatrix(ISquareMatrix source): this(source.Size) {
+    public SquareMatrix(ISquareMatrix source) : this(source.Size) {
       this.Set(source);
     }
 
-    public SquareMatrix(float[,] data): base(data) {
+    public SquareMatrix(float[,] data) : base(data) {
       if (Rows != Columns) {
         throw new ArgumentException("Array is not square.");
       }

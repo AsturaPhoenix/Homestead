@@ -10,7 +10,7 @@ namespace Assets
       data = new float[rows, columns];
     }
 
-    public Matrix(IMatrix source): this(source.Rows, source.Columns) {
+    public Matrix(IMatrix source) : this(source.Rows, source.Columns) {
       this.Set(source);
     }
 

@@ -3,7 +3,8 @@ using UnityEngine;
 
 namespace Assets
 {
-  public class Vector: IVector {
+  public class Vector : IVector
+  {
     private readonly float[] data;
 
     public Vector(int length) {
@@ -14,7 +15,7 @@ namespace Assets
       this.data = data;
     }
 
-    public Vector(Vector3 source): this(source.x, source.y, source.z) { }
+    public Vector(Vector3 source) : this(source.x, source.y, source.z) { }
 
     public Vector(IVector source) {
       data = new float[source.Length];

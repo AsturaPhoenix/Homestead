@@ -6,7 +6,8 @@ using UnityEngine;
 
 namespace Assets
 {
-  public interface IMatrix : IEnumerable<float> {
+  public interface IMatrix : IEnumerable<float>
+  {
     int Rows { get; }
     int Columns { get; }
     float this[Index row, Index column] { get; set; }

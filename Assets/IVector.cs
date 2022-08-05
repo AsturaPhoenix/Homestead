@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Assets
 {
-  public interface IVector: IEnumerable<float>
+  public interface IVector : IEnumerable<float>
   {
     int Length { get; }
     float this[Index n] { get; set; }

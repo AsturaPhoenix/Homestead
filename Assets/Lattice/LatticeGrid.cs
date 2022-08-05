@@ -3,7 +3,8 @@ using System.Linq;
 
 namespace Assets.Lattice
 {
-  public class LatticeGrid<T, U> {
+  public class LatticeGrid<T, U>
+  {
     public class Node
     {
       public T Vertex;
