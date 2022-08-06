@@ -167,6 +167,11 @@ namespace Assets
       return v.Slice(start, count);
     }
 
+    public static Vector3 ToVector3(this IVector v) {
+      Debug.Assert(v.Length == 3);
+      return new(v[0], v[1], v[2]);
+    }
+
     public static SymmetricMatrix SelfOuterProduct(IVector v) {
       SymmetricMatrix mat = new(v.Length);
       for (int row = 0; row < v.Length; ++row) {
